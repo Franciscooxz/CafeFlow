@@ -1,0 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ─── Color tokens (RGB channels para soporte de opacidad) ─────────────────── */
+  /* Base neutra; el acento (terracota*, onBrand) lo sobrescribe la marca de cada
+     negocio desde lib/brand.ts. Los valores de aquí son el default de CafeFlow. */
+  :root {
+    --cafe-black:      23 23 22;      /* #171716 tinta */
+    --cafe-white:      255 255 255;   /* #FFFFFF superficies */
+    --cafe-cream:      246 245 242;   /* #F6F5F2 fondo papel */
+    --cafe-beige:      236 234 229;   /* #ECEAE5 hover / chips */
+    --cafe-terracota:  196 112 74;    /* #C4704A */
+    --cafe-terracota2: 172 99 65;     /* hover */
+    --cafe-onBrand:    255 255 255;   /* texto sobre el color de marca */
+    --cafe-gray:       112 110 106;   /* #706E6A texto secundario */
+    --cafe-grayLight:  216 213 207;   /* #D8D5CF bordes */
+    --cafe-grayDark:   58 57 55;      /* #3A3937 */
+  }
+
+  /* ─── Dark mode: grafito neutro ────────────────────────────────────────────── */
+  html.dark {
+    --cafe-black:     236 234 230;   /* texto */
+    --cafe-white:     30 30 29;      /* superficies (cards) */
+    --cafe-cream:     20 20 19;      /* fondo */
+    --cafe-beige:     44 43 41;      /* hover / chips */
+    --cafe-gray:      163 160 154;   /* texto secundario */
+    --cafe-grayLight: 68 66 63;      /* bordes */
+    --cafe-grayDark:  208 205 199;
+  }
+
+  /* ─── Sidebar: siempre oscuro (re-establece vars del modo claro) ───────────── */
+  .sidebar-fixed {
+    --cafe-black:     23 23 22;
+    --cafe-white:     255 255 255;
+    --cafe-cream:     246 245 242;
+    --cafe-beige:     236 234 229;
+    --cafe-gray:      112 110 106;
+    --cafe-grayLight: 216 213 207;
+    --cafe-grayDark:  58 57 55;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-cafe-cream text-cafe-black antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  ::selection {
+    background: rgb(var(--cafe-terracota) / 0.2);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-cafe-beige;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-cafe-grayLight rounded-full;
+  }
+}
+
+/* ─── Dark mode: sombras más visibles sobre fondos oscuros ─────────────────── */
+@layer utilities {
+  html.dark .shadow-cafe    { box-shadow: 0 2px 16px 0 rgba(0,0,0,0.35); }
+  html.dark .shadow-cafe-lg { box-shadow: 0 8px 32px 0 rgba(0,0,0,0.45); }
+  html.dark .shadow-cafe-xl { box-shadow: 0 16px 48px 0 rgba(0,0,0,0.55); }
+
+  /* Fondos pastel (bg-*-50) de badges e íconos: en oscuro serían cuadros casi blancos */
+  html.dark .bg-blue-50    { background-color: rgb(59 130 246 / 0.15); }
+  html.dark .bg-green-50   { background-color: rgb(34 197 94 / 0.15); }
+  html.dark .bg-emerald-50 { background-color: rgb(16 185 129 / 0.15); }
+  html.dark .bg-purple-50  { background-color: rgb(168 85 247 / 0.15); }
+  html.dark .bg-violet-50  { background-color: rgb(139 92 246 / 0.15); }
+  html.dark .bg-amber-50   { background-color: rgb(245 158 11 / 0.15); }
+  html.dark .bg-red-50     { background-color: rgb(239 68 68 / 0.15); }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-cafe-terracota text-cafe-onBrand px-6 py-3 rounded-xl font-medium
+           hover:bg-cafe-terracota2 active:scale-95 transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-secondary {
+    @apply bg-cafe-beige text-cafe-black px-6 py-3 rounded-xl font-medium
+           hover:bg-cafe-grayLight active:scale-95 transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-cafe-gray px-4 py-2 rounded-xl font-medium
+           hover:bg-cafe-beige active:scale-95 transition-all duration-150;
+  }
+
+  .input-field {
+    @apply w-full bg-cafe-white border border-cafe-grayLight rounded-xl px-4 py-3
+           text-cafe-black placeholder:text-cafe-grayLight
+           focus:outline-none focus:border-cafe-terracota focus:ring-2 focus:ring-cafe-terracota/20
+           transition-all duration-150;
+  }
+
+  .card {
+    @apply bg-cafe-white rounded-2xl shadow-cafe p-6;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium;
+  }
+}

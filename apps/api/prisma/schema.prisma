@@ -1,0 +1,476 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── TENANT ───────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id                  String   @id @default(cuid())
+  name                String
+  slug                String   @unique
+  onboardingCompleted Boolean  @default(false)
+  isActive            Boolean  @default(true)
+  brandColor          String?
+  // data:image/webp;base64,... redimensionado en el navegador (ver UpdateBrandingDto)
+  logoUrl             String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  users          User[]
+  stores         Store[]
+  products       Product[]
+  categories     Category[]
+  orders         Order[]
+  auditLogs      AuditLog[]
+  shifts         Shift[]
+  modifierGroups ModifierGroup[]
+  customers      Customer[]
+  discounts      Discount[]
+  tables         Table[]
+  stockMovements StockMovement[]
+
+  @@map("tenants")
+}
+
+// ─── USER ─────────────────────────────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+  CASHIER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         Role     @default(CASHIER)
+  isActive     Boolean  @default(true)
+  storeId      String?
+  locale       String   @default("es")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id])
+  store               Store?               @relation(fields: [storeId], references: [id])
+  refreshTokens       RefreshToken[]
+  shifts              Shift[]
+  orders              Order[]
+  auditLogs           AuditLog[]
+  stockMovements      StockMovement[]
+  orderStatusEvents   OrderStatusEvent[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+// Solo se guarda el SHA-256 del token: quien lea la BD no puede usar los enlaces.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ─── STORE ────────────────────────────────────────────────────────────────────
+
+model Store {
+  id               String   @id @default(cuid())
+  tenantId         String
+  name             String
+  address          String?
+  currency         String   @default("USD")
+  taxRate          Decimal  @default(0) @db.Decimal(5, 4)
+  timezone         String   @default("America/Bogota")
+  phone            String?
+  isActive         Boolean  @default(true)
+  lastTicketNumber Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  users  User[]
+  shifts Shift[]
+  orders Order[]
+  tables Table[]
+
+  @@map("stores")
+}
+
+// ─── CATEGORY ─────────────────────────────────────────────────────────────────
+
+model Category {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  color     String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  products Product[]
+
+  @@index([tenantId, isActive, sortOrder])
+  @@map("categories")
+}
+
+// ─── PRODUCT ──────────────────────────────────────────────────────────────────
+
+model Product {
+  id            String   @id @default(cuid())
+  tenantId      String
+  categoryId    String?
+  name          String
+  description   String?
+  price         Decimal  @db.Decimal(19, 2)
+  taxRate       Decimal  @default(0) @db.Decimal(5, 4)
+  imageUrl      String?
+  isActive      Boolean  @default(true)
+  stock         Float    @default(0)
+  lowStockAlert Float    @default(5)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  category       Category?       @relation(fields: [categoryId], references: [id])
+  orderItems     OrderItem[]
+  modifierGroups ModifierGroup[] @relation("ProductModifierGroups")
+  stockMovements StockMovement[]
+
+  @@index([tenantId, isActive])
+  @@index([categoryId])
+  @@map("products")
+}
+
+// ─── MODIFIER GROUPS ──────────────────────────────────────────────────────────
+
+model ModifierGroup {
+  id          String  @id @default(cuid())
+  tenantId    String
+  name        String
+  required    Boolean @default(false)
+  multiSelect Boolean @default(false)
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  modifiers Modifier[]
+  products  Product[]  @relation("ProductModifierGroups")
+
+  @@index([tenantId])
+  @@map("modifier_groups")
+}
+
+model Modifier {
+  id              String  @id @default(cuid())
+  groupId         String
+  name            String
+  priceAdjustment Decimal @default(0) @db.Decimal(19, 2)
+  isActive        Boolean @default(true)
+
+  group              ModifierGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  orderItemModifiers OrderItemModifier[]
+
+  @@index([groupId])
+  @@map("modifiers")
+}
+
+model OrderItemModifier {
+  id              String  @id @default(cuid())
+  orderItemId     String
+  modifierId      String
+  name            String
+  priceAdjustment Decimal @db.Decimal(19, 2)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifier  Modifier  @relation(fields: [modifierId], references: [id])
+
+  @@index([orderItemId])
+  @@map("order_item_modifiers")
+}
+
+// ─── CUSTOMER ─────────────────────────────────────────────────────────────────
+
+model Customer {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  phone         String?
+  email         String?
+  loyaltyPoints Int      @default(0)
+  totalSpent    Decimal  @default(0) @db.Decimal(19, 2)
+  createdAt     DateTime @default(now())
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  orders Order[]
+
+  @@index([tenantId])
+  @@map("customers")
+}
+
+// ─── DISCOUNT ─────────────────────────────────────────────────────────────────
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model Discount {
+  id        String       @id @default(cuid())
+  tenantId  String
+  code      String
+  type      DiscountType
+  value     Decimal      @db.Decimal(19, 2)
+  minOrder  Decimal      @default(0) @db.Decimal(19, 2)
+  maxUses   Int?
+  usedCount Int          @default(0)
+  expiresAt DateTime?
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  orders Order[]
+
+  @@unique([tenantId, code])
+  @@map("discounts")
+}
+
+// ─── TABLE ────────────────────────────────────────────────────────────────────
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+}
+
+model Table {
+  id        String      @id @default(cuid())
+  tenantId  String
+  storeId   String
+  number    Int
+  name      String?
+  capacity  Int         @default(2)
+  status    TableStatus @default(AVAILABLE)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  store  Store   @relation(fields: [storeId], references: [id])
+  orders Order[]
+
+  @@unique([tenantId, storeId, number])
+  @@map("tables")
+}
+
+// ─── SHIFT ────────────────────────────────────────────────────────────────────
+
+model Shift {
+  id          String    @id @default(cuid())
+  tenantId    String
+  storeId     String
+  userId      String
+  openedAt    DateTime  @default(now())
+  closedAt    DateTime?
+  openingCash Decimal   @default(0) @db.Decimal(19, 2)
+  closingCash Decimal?  @db.Decimal(19, 2)
+  notes       String?
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  store  Store   @relation(fields: [storeId], references: [id])
+  user   User    @relation(fields: [userId], references: [id])
+  orders Order[]
+
+  @@index([userId, closedAt])
+  @@index([tenantId, storeId])
+  @@map("shifts")
+}
+
+// ─── ORDER ────────────────────────────────────────────────────────────────────
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MIXED
+}
+
+// Estado en barra/cocina, independiente de OrderStatus (que es el estado del cobro).
+enum FulfillmentStatus {
+  RECEIVED
+  PREPARING
+  READY
+  DELIVERED
+}
+
+model Order {
+  id                String            @id @default(cuid())
+  tenantId          String
+  storeId           String
+  shiftId           String
+  userId            String
+  customerId        String?
+  discountId        String?
+  tableId           String?
+  ticketNumber      Int
+  status            OrderStatus       @default(COMPLETED)
+  subtotal          Decimal           @db.Decimal(19, 2)
+  taxAmount         Decimal           @db.Decimal(19, 2)
+  discountAmount    Decimal           @default(0) @db.Decimal(19, 2)
+  total             Decimal           @db.Decimal(19, 2)
+  paymentMethod     PaymentMethod
+  cashReceived      Decimal?          @db.Decimal(19, 2)
+  cardAmount        Decimal?          @db.Decimal(19, 2)
+  notes             String?
+  // Nombre con el que se llama al cliente en barra ("¡Ana, tu latte!").
+  callName          String?           @db.VarChar(40)
+  fulfillmentStatus FulfillmentStatus @default(RECEIVED)
+  createdAt         DateTime          @default(now())
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id])
+  store        Store              @relation(fields: [storeId], references: [id])
+  shift        Shift              @relation(fields: [shiftId], references: [id])
+  user         User               @relation(fields: [userId], references: [id])
+  customer     Customer?          @relation(fields: [customerId], references: [id])
+  discount     Discount?          @relation(fields: [discountId], references: [id])
+  table        Table?             @relation(fields: [tableId], references: [id])
+  items        OrderItem[]
+  statusEvents OrderStatusEvent[]
+
+  @@unique([tenantId, storeId, ticketNumber])
+  @@index([tenantId, status, createdAt])
+  @@index([storeId, fulfillmentStatus, createdAt])
+  @@index([storeId, createdAt])
+  @@index([shiftId])
+  @@index([customerId])
+  @@map("orders")
+}
+
+// Append-only: una fila por cada cambio de fulfillmentStatus. Permite medir
+// tiempos (recibido → listo) sin depender del valor actual del pedido.
+model OrderStatusEvent {
+  id        String            @id @default(cuid())
+  tenantId  String
+  orderId   String
+  status    FulfillmentStatus
+  userId    String?
+  createdAt DateTime          @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@index([tenantId, createdAt])
+  @@map("order_status_events")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Float
+  unitPrice Decimal @db.Decimal(19, 2)
+  taxRate   Decimal @db.Decimal(5, 4)
+  subtotal  Decimal @db.Decimal(19, 2)
+
+  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product             @relation(fields: [productId], references: [id])
+  modifiers OrderItemModifier[]
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// ─── STOCK MOVEMENT ───────────────────────────────────────────────────────────
+
+enum StockMovementType {
+  SALE
+  RETURN
+  ADJUSTMENT
+  IMPORT
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  tenantId      String
+  productId     String
+  userId        String?
+  orderId       String?
+  type          StockMovementType
+  quantity      Float
+  previousStock Float
+  newStock      Float
+  notes         String?
+  createdAt     DateTime          @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@index([productId, createdAt])
+  @@index([tenantId, createdAt])
+  @@map("stock_movements")
+}
+
+// ─── AUDIT LOG ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entity, entityId])
+  @@map("audit_logs")
+}

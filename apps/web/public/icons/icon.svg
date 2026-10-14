@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Fondo oscuro (safe zone para maskable) -->
+  <rect width="512" height="512" fill="#1C1410"/>
+
+  <!-- Vapor izquierda -->
+  <path d="M188 100 Q188 116 200 128 Q212 140 212 156" fill="none" stroke="#C4704A" stroke-width="10" stroke-linecap="round"/>
+  <!-- Vapor centro -->
+  <path d="M256 92 Q256 110 268 124 Q280 138 280 156" fill="none" stroke="#C4704A" stroke-width="10" stroke-linecap="round"/>
+  <!-- Vapor derecha -->
+  <path d="M324 100 Q324 116 336 128 Q348 140 348 156" fill="none" stroke="#C4704A" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Taza (cuerpo) -->
+  <path d="M152 190 L360 190 L334 328 Q330 340 318 340 L194 340 Q182 340 178 328 Z" fill="none" stroke="#C4704A" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Asa -->
+  <path d="M360 190 L376 190 Q420 190 420 242 Q420 294 376 294 L360 294" fill="none" stroke="#C4704A" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Platillo -->
+  <line x1="120" y1="368" x2="392" y2="368" stroke="#C4704A" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Texto "CF" pequeño en la taza -->
+  <text x="256" y="282" font-family="system-ui,sans-serif" font-size="52" font-weight="700" fill="#C4704A" text-anchor="middle" opacity="0.6">CF</text>
+</svg>
